@@ -3,6 +3,14 @@ import datetime
 import requests
 
 
+class CriticalException(Exception):
+    def __init__(self, msg):
+        self.msg = msg
+
+    def __str__(self):
+        return str(self.msg)
+
+
 def get_today():
     return datetime.datetime.now()
 
@@ -20,9 +28,22 @@ class CatalogAPI:
         else:
             url = f"{self.url}/{self.catalog_id}"
 
-        response = requests.get(url)
-        if response.ok:
-            return response.json()
+        try:
+            response = requests.get(url)
+
+            response.raise_for_status()
+
+            if response.ok:
+                return response.json()
+
+        except (
+            requests.exceptions.HTTPError,
+            requests.exceptions.ConnectionError,
+            requests.exceptions.RequestException,
+            requests.exceptions.Timeout,
+            requests.exceptions.TooManyRedirects
+        ) as e:
+            raise CriticalException(e)
 
     def check_key_exists(self, key):
         return key in self.data

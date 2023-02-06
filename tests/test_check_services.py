@@ -2,7 +2,8 @@ import datetime
 import unittest
 from unittest import mock
 
-from argo_probe_onboarding.catalog import CatalogAPI
+from argo_probe_onboarding.catalog import CatalogAPI, CriticalException
+from requests.exceptions import RequestException
 
 catalog_data = [
     {
@@ -396,6 +397,10 @@ class MockResponse:
         self._data = data
         self.ok = str(status_code).startswith("2")
 
+    def raise_for_status(self):
+        if not self.ok:
+            raise RequestException("418 I am a teapot")
+
     def json(self):
         return self._data
 
@@ -409,6 +414,9 @@ def mock_get_response(*args, **kwargs):
 
     elif args[0].endswith("xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxx58"):
         return MockResponse(data=catalog_data[1], status_code=200)
+
+    elif args[0].endswith("xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxx111"):
+        return MockResponse(data=None, status_code=418)
 
     else:
         return MockResponse(data=[], status_code=200)
@@ -427,6 +435,19 @@ class ServiceAPITests(unittest.TestCase):
         )
         self.assertTrue(services.check_key_exists("erp_mgi_user_manual"))
         self.assertFalse(services.check_key_exists("erp_mgi_user_nanual"))
+
+    @mock.patch("requests.get")
+    def test_raise_exception_if_no_catalog_response(self, mock_request):
+        mock_request.side_effect = mock_get_response
+        with self.assertRaises(CriticalException) as context:
+            CatalogAPI(
+                url="https://mock2.api.url.com",
+                catalog_id="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxx111"
+            )
+        mock_request.assert_called_once_with(
+            "https://mock2.api.url.com/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxx111"
+        )
+        self.assertEqual(context.exception.__str__(), "418 I am a teapot")
 
     @mock.patch("requests.get")
     def test_check_url_valid(self, mock_request):
