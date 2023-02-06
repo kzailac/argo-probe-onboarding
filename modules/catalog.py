@@ -50,12 +50,21 @@ class CatalogAPI:
         return key in self.data
 
     def check_url_valid(self, key):
-        response = requests.get(self.data[key])
-        if response.ok:
-            return True
+        try:
+            response = requests.get(self.data[key])
+            response.raise_for_status()
 
-        else:
-            return False
+            if response.ok:
+                return True
+
+        except (
+                requests.exceptions.HTTPError,
+                requests.exceptions.ConnectionError,
+                requests.exceptions.RequestException,
+                requests.exceptions.Timeout,
+                requests.exceptions.TooManyRedirects
+        ) as e:
+            raise CriticalException(f"URL {self.data[key]} not valid: {str(e)}")
 
     def check_date_age(self, key, date_format):
         def age_month(d):

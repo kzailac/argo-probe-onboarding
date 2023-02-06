@@ -399,7 +399,11 @@ class MockResponse:
 
     def raise_for_status(self):
         if not self.ok:
-            raise RequestException("418 I am a teapot")
+            if self.status_code == 500:
+                raise RequestException("500 SERVER ERROR")
+
+            else:
+                raise RequestException("418 I am a teapot")
 
     def json(self):
         return self._data
@@ -479,7 +483,8 @@ class ServiceAPITests(unittest.TestCase):
             catalog_id="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxx58",
             timeout=30
         )
-        self.assertFalse(services.check_url_valid(key="erp_mgi_user_manual"))
+        with self.assertRaises(CriticalException) as context:
+            services.check_url_valid(key="erp_mgi_user_manual")
         self.assertEqual(mock_request.call_count, 2)
         mock_request.assert_has_calls([
             mock.call(
@@ -488,6 +493,10 @@ class ServiceAPITests(unittest.TestCase):
             ),
             mock.call("https://sample.com/users-manual")
         ], any_order=True)
+        self.assertEqual(
+            context.exception.__str__(),
+            "URL https://sample.com/users-manual not valid: 500 SERVER ERROR"
+        )
 
     @mock.patch("argo_probe_onboarding.catalog.get_today")
     @mock.patch("requests.get")
