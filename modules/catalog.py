@@ -40,7 +40,7 @@ class CatalogAPI:
             raise CriticalException(e)
 
     def check_key_exists(self, key):
-        return key in self.data
+        return key in self.data and self.data[key]
 
     def check_url_valid(self, key):
         try:

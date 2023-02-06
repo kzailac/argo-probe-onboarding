@@ -76,7 +76,7 @@ catalog_data = [
         'erp_mgi_privacy_policy': None,
         'erp_bai_name': 'Some service',
         'published_at': '2021-02-15T22:22:13',
-        'erp_mgi_sla_specification': None,
+        'erp_mgi_sla_specification': '',
         'erp_mri_multimedia': None,
         'erp_mti_technology_readiness_level': {
             'description':
@@ -426,10 +426,9 @@ def mock_get_response(*args, **kwargs):
         return MockResponse(data=[], status_code=200)
 
 
+@mock.patch("requests.get", side_effect=mock_get_response)
 class ServiceAPITests(unittest.TestCase):
-    @mock.patch("requests.get")
     def test_check_key_exists(self, mock_request):
-        mock_request.side_effect = mock_get_response
         services = CatalogAPI(
             url="https://mock.api.url.com",
             catalog_id="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxx11",
@@ -441,10 +440,10 @@ class ServiceAPITests(unittest.TestCase):
         )
         self.assertTrue(services.check_key_exists("erp_mgi_user_manual"))
         self.assertFalse(services.check_key_exists("erp_mgi_user_nanual"))
+        self.assertFalse(services.check_key_exists("erp_mgi_privacy_policy"))
+        self.assertFalse(services.check_key_exists("erp_mgi_sla_specification"))
 
-    @mock.patch("requests.get")
     def test_raise_exception_if_no_catalog_response(self, mock_request):
-        mock_request.side_effect = mock_get_response
         with self.assertRaises(CriticalException) as context:
             CatalogAPI(
                 url="https://mock2.api.url.com",
@@ -457,9 +456,7 @@ class ServiceAPITests(unittest.TestCase):
         )
         self.assertEqual(context.exception.__str__(), "418 I am a teapot")
 
-    @mock.patch("requests.get")
     def test_check_url_valid(self, mock_request):
-        mock_request.side_effect = mock_get_response
         services = CatalogAPI(
             url="https://mock.api.url.com/",
             catalog_id="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxx11",
@@ -475,9 +472,7 @@ class ServiceAPITests(unittest.TestCase):
             mock.call("https://example.com/user-manual")
         ], any_order=True)
 
-    @mock.patch("requests.get")
     def test_check_url_not_valid(self, mock_request):
-        mock_request.side_effect = mock_get_response
         services = CatalogAPI(
             url="https://mock.api.url.com/",
             catalog_id="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxx58",
@@ -499,9 +494,7 @@ class ServiceAPITests(unittest.TestCase):
         )
 
     @mock.patch("argo_probe_onboarding.catalog.get_today")
-    @mock.patch("requests.get")
-    def test_check_date_age(self, mock_request, mock_today):
-        mock_request.side_effect = mock_get_response
+    def test_check_date_age(self, mock_today, _):
         mock_today.return_value = datetime.datetime(2022, 11, 24, 15, 48, 23)
         services = CatalogAPI(
             url="https://mock.api.url.com/",
