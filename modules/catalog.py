@@ -16,9 +16,10 @@ def get_today():
 
 
 class CatalogAPI:
-    def __init__(self, url, catalog_id):
+    def __init__(self, url, catalog_id, timeout):
         self.url = url
         self.catalog_id = catalog_id
+        self.timeout = timeout
         self.data = self._get_data()
 
     def _get_data(self):
@@ -29,7 +30,7 @@ class CatalogAPI:
             url = f"{self.url}/{self.catalog_id}"
 
         try:
-            response = requests.get(url)
+            response = requests.get(url, timeout=self.timeout)
 
             response.raise_for_status()
 

@@ -428,10 +428,12 @@ class ServiceAPITests(unittest.TestCase):
         mock_request.side_effect = mock_get_response
         services = CatalogAPI(
             url="https://mock.api.url.com",
-            catalog_id="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxx11"
+            catalog_id="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxx11",
+            timeout=30
         )
         mock_request.assert_called_once_with(
-            "https://mock.api.url.com/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxx11"
+            "https://mock.api.url.com/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxx11",
+            timeout=30
         )
         self.assertTrue(services.check_key_exists("erp_mgi_user_manual"))
         self.assertFalse(services.check_key_exists("erp_mgi_user_nanual"))
@@ -442,10 +444,12 @@ class ServiceAPITests(unittest.TestCase):
         with self.assertRaises(CriticalException) as context:
             CatalogAPI(
                 url="https://mock2.api.url.com",
-                catalog_id="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxx111"
+                catalog_id="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxx111",
+                timeout=30
             )
         mock_request.assert_called_once_with(
-            "https://mock2.api.url.com/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxx111"
+            "https://mock2.api.url.com/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxx111",
+            timeout=30
         )
         self.assertEqual(context.exception.__str__(), "418 I am a teapot")
 
@@ -454,13 +458,15 @@ class ServiceAPITests(unittest.TestCase):
         mock_request.side_effect = mock_get_response
         services = CatalogAPI(
             url="https://mock.api.url.com/",
-            catalog_id="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxx11"
+            catalog_id="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxx11",
+            timeout=30
         )
         self.assertTrue(services.check_url_valid(key="erp_mgi_user_manual"))
         self.assertEqual(mock_request.call_count, 2)
         mock_request.assert_has_calls([
             mock.call(
-                "https://mock.api.url.com/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxx11"
+                "https://mock.api.url.com/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxx11",
+                timeout=30
             ),
             mock.call("https://example.com/user-manual")
         ], any_order=True)
@@ -470,13 +476,15 @@ class ServiceAPITests(unittest.TestCase):
         mock_request.side_effect = mock_get_response
         services = CatalogAPI(
             url="https://mock.api.url.com/",
-            catalog_id="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxx58"
+            catalog_id="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxx58",
+            timeout=30
         )
         self.assertFalse(services.check_url_valid(key="erp_mgi_user_manual"))
         self.assertEqual(mock_request.call_count, 2)
         mock_request.assert_has_calls([
             mock.call(
-                "https://mock.api.url.com/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxx58"
+                "https://mock.api.url.com/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxx58",
+                timeout=30
             ),
             mock.call("https://sample.com/users-manual")
         ], any_order=True)
@@ -488,7 +496,8 @@ class ServiceAPITests(unittest.TestCase):
         mock_today.return_value = datetime.datetime(2022, 11, 24, 15, 48, 23)
         services = CatalogAPI(
             url="https://mock.api.url.com/",
-            catalog_id="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxx11"
+            catalog_id="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxx11",
+            timeout=30
         )
         self.assertEqual(
             services.check_date_age(
