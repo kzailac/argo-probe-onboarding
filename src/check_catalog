@@ -93,16 +93,16 @@ def main():
             if date_age < 0:
                 status.critical("Entry updated in the future")
 
-            elif 0 < date_age < (args.age - 1):
+            elif 0 <= date_age < (args.age - 1):
                 status.ok("Resource description is up-to-date")
 
             elif date_age == (args.age - 1):
                 status.warning(
-                    f"Entry last updated {args.age - 1} months ago"
+                    f"Entry last updated {date_age} months ago"
                 )
 
             else:
-                status.critical(f"Entry last updated {args.age} months ago")
+                status.critical(f"Entry last updated {date_age} months ago")
 
         else:
             missing_keys = list()
