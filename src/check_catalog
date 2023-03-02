@@ -1,0 +1,167 @@
+#!/usr/bin/python3
+import argparse
+import sys
+
+from argo_probe_onboarding.catalog import CatalogAPI
+from argo_probe_onboarding.exceptions import CriticalException
+from argo_probe_onboarding.status import Status
+
+USAGE = """
+  ARGO probe that checks validity of entries in the service catalog
+    -u URL -i SERVICE_ID -t TIMEOUT [-k KEY [KEY ...]] 
+""".rstrip("\n") + \
+    "[--check-url | --check-age] [--age AGE_MONTHS] [-h]"
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        add_help=False,
+        usage=USAGE,
+        formatter_class=argparse.RawTextHelpFormatter
+    )
+    required = parser.add_argument_group("required arguments")
+    optional = parser.add_argument_group("optional arguments")
+    required.add_argument(
+        "-u", "--url", dest="url", type=str, required=True,
+        help="API endpoint URL"
+    )
+    required.add_argument(
+        "-i", "--id", dest="id", type=str, required=True,
+        help="Entry ID in the catalog"
+    )
+    required.add_argument(
+        "-t", "--timeout", dest="timeout", type=float, required=True,
+        default=30, help="Seconds before the connection times out (default 30)"
+    )
+    optional.add_argument(
+        "-k", "--key", dest="keys", type=str, nargs="*",
+        help="Space separated list of keys in API response that are going to "
+             "be checked; probe returns CRITICAL if the key does not exist in "
+             "API response or if its value is undefined"
+    )
+    optional.add_argument(
+        "--check-url", dest="check_url", action="store_true",
+        help="Flag to check the keys' value as URL; the probe returns CRITICAL "
+             "if the URL response is different than OK"
+    )
+    optional.add_argument(
+        "--check-date", dest="check_date", action="store_true",
+        help="Flag to check the 'updated_at' key value as date; "
+             "must be used with -a/--age parameter"
+    )
+    optional.add_argument(
+        "-a", "--age", dest="age", type=float,
+        help="Age in months; used with --check-date; "
+             "the probe returns WARNING if the date is older than AGE - 1, and"
+             "CRITICAL if it is older than AGE"
+    )
+    optional.add_argument(
+        "-h", "--help", action="help", default=argparse.SUPPRESS,
+        help="Show this help message and exit"
+    )
+    args = parser.parse_args()
+
+    if args.check_url and args.check_date:
+        parser.error(
+            "Arguments --check-url and --check-date are mutually exclusive"
+        )
+        sys.exit(2)
+
+    if args.check_date and not args.age:
+        parser.error("Argument --check-date must be used with -a/--age")
+        sys.exit(2)
+
+    if not args.check_date and args.age:
+        parser.error("Argument -a/--age must be used with --check-date")
+        sys.exit(2)
+
+    if args.check_url and not args.keys:
+        parser.error("Argument --check-url must be used with -k/--key")
+
+    status = Status()
+
+    try:
+        catalog = CatalogAPI(
+            url=args.url, catalog_id=args.id, timeout=args.timeout
+        )
+
+        if args.check_date:
+            date_age = catalog.check_date_age(
+                key="updated_at", date_format="%Y-%m-%dT%H:%M:%S"
+            )
+
+            if date_age < 0:
+                status.critical("Entry updated in the future")
+
+            elif 0 <= date_age < (args.age - 1):
+                status.ok("Resource description is up-to-date")
+
+            elif date_age == (args.age - 1):
+                status.warning(
+                    f"Entry last updated {date_age} months ago"
+                )
+
+            else:
+                status.critical(f"Entry last updated {date_age} months ago")
+
+        else:
+            missing_keys = list()
+            for key in args.keys:
+                if not catalog.check_key_exists(key):
+                    missing_keys.append(key)
+
+                else:
+                    continue
+
+            if len(missing_keys) > 0:
+                if len(missing_keys) == 1:
+                    status.critical(f"Key {missing_keys[0]} is not defined")
+                else:
+                    status.critical(
+                        f"Keys {', '.join(missing_keys)} are not defined"
+                    )
+
+            if args.check_url:
+                invalid_urls = list()
+                for key in args.keys:
+                    try:
+                        catalog.check_url_valid(key)
+
+                    except CriticalException as e:
+                        invalid_urls.append(e)
+
+                if len(invalid_urls) > 0:
+                    if len(invalid_urls) == 1:
+                        status.critical(invalid_urls[0])
+
+                    else:
+                        status.critical(
+                            "Invalid URLs: " + "\n".join(invalid_urls)
+                        )
+
+                else:
+                    if len(args.keys) == 1:
+                        status.ok("URL valid")
+
+                    else:
+                        status.ok("All URLs valid")
+
+            else:
+                if len(args.keys) == 1:
+                    status.ok(f"Key {args.keys[0]} defined")
+
+                else:
+                    status.ok(f"Keys {', '.join(args.keys)} all defined")
+
+    except CriticalException as e:
+        status.critical(str(e))
+
+    except Exception as e:
+        status.unknown(str(e))
+
+    print(status.get_msg())
+    sys.exit(status.get_status_code())
+
+
+if __name__ == "__main__":
+    main()
