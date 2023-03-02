@@ -39,3 +39,8 @@ rm -rf $RPM_BUILD_ROOT
 %dir %{python3_sitelib}/%{underscore %{name}}/
 %{python3_sitelib}/%{underscore %{name}}/*.py
 
+
+%changelog
+* Thu Mar 2 2023 Katarina Zailac <kzailac@srce.hr> - 0.1.0-1
+- ARGO-4221 check_catalog probe returning wrong CRITICAL status
+- ARGO-4211 Create a probe for on-boarding process monitoring
